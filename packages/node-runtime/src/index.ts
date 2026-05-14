@@ -34,6 +34,7 @@ export {
 export type { AssistantConfig, AssistantSummary, SkillDef, SkillSummary } from './ai'
 export { parseAssistantFile, serializeAssistant, parseSkillFile, extractSkillId } from './ai'
 export { AIConversationManager } from './ai'
+export { countTokens, countMessagesTokens } from './ai'
 export type {
   AIConversation,
   AIMessage,

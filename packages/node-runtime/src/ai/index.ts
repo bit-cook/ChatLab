@@ -16,3 +16,6 @@ export type {
   TokenUsageData,
   ConversationManagerLogger,
 } from './conversations'
+
+// Tokenizer
+export { countTokens, countMessagesTokens } from './tokenizer'

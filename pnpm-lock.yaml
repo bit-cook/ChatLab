@@ -161,6 +161,9 @@ importers:
       gray-matter:
         specifier: ^4.0.3
         version: 4.0.3
+      js-tiktoken:
+        specifier: ^1.0.21
+        version: 1.0.21
 
   packages/parser:
     dependencies:

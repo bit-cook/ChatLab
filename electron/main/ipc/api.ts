@@ -1,28 +1,119 @@
 /**
  * ChatLab API — IPC handlers for renderer process (hierarchical data source model)
+ *
+ * Migrated to @openchatlab/sync shared package.
  */
 
-import { ipcMain } from 'electron'
+import { ipcMain, net } from 'electron'
 import type { IpcContext } from './types'
 import * as apiServer from '../api'
-import { loadConfig, regenerateToken, updateConfig } from '../api/config'
+import { setConfigManager } from '../api'
+import { getSettingsDir } from '../paths'
+import { apiLogger } from '../api/logger'
+import { getImportingStatus } from '../api/routes/import'
+import { ElectronFetcher, WorkerImporter, BrowserWindowNotifier } from '../api/adapters'
 import {
-  loadDataSources,
-  addDataSource,
-  updateDataSource,
-  deleteDataSource,
-  addImportSessions,
-  removeImportSession,
-  type DataSource,
-} from '../api/dataSource'
-import { initScheduler, stopAllTimers, stopTimer, reloadTimer, triggerPull, triggerPullAll } from '../api/pullScheduler'
-import { fetchRemoteSessions } from '../api/pullDiscovery'
+  ConfigManager,
+  DataSourceManager,
+  PullEngine,
+  initScheduler,
+  stopAllTimers,
+  stopTimer,
+  reloadTimer,
+  buildRemoteSessionsUrl,
+  parseRemoteSessionsResponse,
+  normalizeBaseUrl,
+} from '@openchatlab/sync'
+import type { DataSourceUpdatable, RemoteSessionDiscoveryQuery, RemoteSessionDiscoveryResult } from '@openchatlab/sync'
+
+const syncLogger = {
+  info: (msg: string) => apiLogger.info(msg),
+  warn: (msg: string) => apiLogger.warn(msg),
+  error: (msg: string, err?: unknown) => apiLogger.error(msg, err),
+}
+
+let configManager: ConfigManager
+let dsManager: DataSourceManager
+let pullEngine: PullEngine
+
+function ensureInstances(): void {
+  if (configManager) return
+
+  const settingsDir = getSettingsDir()
+  configManager = new ConfigManager(settingsDir, syncLogger)
+  dsManager = new DataSourceManager(settingsDir, syncLogger)
+  setConfigManager(configManager)
+
+  pullEngine = new PullEngine({
+    fetcher: new ElectronFetcher(),
+    importer: new WorkerImporter(syncLogger),
+    notifier: new BrowserWindowNotifier(),
+    dsManager,
+    logger: syncLogger,
+    isImporting: getImportingStatus,
+  })
+}
+
+/** Exported for use by api/index.ts */
+export function getConfigManager(): ConfigManager {
+  ensureInstances()
+  return configManager
+}
+
+function fetchRemoteSessions(
+  baseUrl: string,
+  token?: string,
+  query: RemoteSessionDiscoveryQuery = {}
+): Promise<RemoteSessionDiscoveryResult> {
+  return new Promise<RemoteSessionDiscoveryResult>((resolve, reject) => {
+    const url = buildRemoteSessionsUrl(normalizeBaseUrl(baseUrl), query)
+
+    const request = net.request(url)
+    if (token) {
+      request.setHeader('Authorization', `Bearer ${token}`)
+    }
+    request.setHeader('Accept', 'application/json')
+
+    let body = ''
+
+    request.on('response', (response) => {
+      if (response.statusCode !== 200) {
+        reject(new Error(`Remote server returned HTTP ${response.statusCode}`))
+        return
+      }
+
+      response.on('data', (chunk: Buffer) => {
+        body += chunk.toString('utf-8')
+      })
+
+      response.on('end', () => {
+        try {
+          resolve(parseRemoteSessionsResponse(body))
+        } catch {
+          reject(new Error('Failed to parse remote sessions response'))
+        }
+      })
+
+      response.on('error', (err: Error) => {
+        reject(err)
+      })
+    })
+
+    request.on('error', (err: Error) => {
+      reject(err)
+    })
+
+    request.end()
+  })
+}
 
 export function registerApiHandlers(_ctx: IpcContext): void {
+  ensureInstances()
+
   // ==================== API Server Management ====================
 
   ipcMain.handle('api:getConfig', () => {
-    const config = loadConfig()
+    const config = configManager.load()
     return {
       enabled: config.enabled,
       port: config.port,
@@ -44,17 +135,17 @@ export function registerApiHandlers(_ctx: IpcContext): void {
   })
 
   ipcMain.handle('api:regenerateToken', () => {
-    return regenerateToken()
+    return configManager.regenerateToken()
   })
 
   ipcMain.handle('api:updateConfig', (_event, partial: Record<string, unknown>) => {
-    return updateConfig(partial as any)
+    return configManager.update(partial as any)
   })
 
   // ==================== Data Source Management ====================
 
   ipcMain.handle('api:getDataSources', () => {
-    return loadDataSources()
+    return dsManager.loadAll()
   })
 
   ipcMain.handle(
@@ -63,29 +154,21 @@ export function registerApiHandlers(_ctx: IpcContext): void {
       _event,
       partial: { name?: string; baseUrl: string; token: string; intervalMinutes: number; pullLimit?: number }
     ) => {
-      const ds = addDataSource(partial)
-      return ds
+      return dsManager.add(partial)
     }
   )
 
-  ipcMain.handle(
-    'api:updateDataSource',
-    (
-      _event,
-      id: string,
-      updates: Partial<Pick<DataSource, 'name' | 'baseUrl' | 'token' | 'intervalMinutes' | 'pullLimit' | 'enabled'>>
-    ) => {
-      const ds = updateDataSource(id, updates)
-      if (ds) {
-        reloadTimer(ds.id)
-      }
-      return ds
+  ipcMain.handle('api:updateDataSource', (_event, id: string, updates: DataSourceUpdatable) => {
+    const ds = dsManager.update(id, updates)
+    if (ds) {
+      reloadTimer(ds.id)
     }
-  )
+    return ds
+  })
 
   ipcMain.handle('api:deleteDataSource', (_event, id: string) => {
     stopTimer(id)
-    return deleteDataSource(id)
+    return dsManager.delete(id)
   })
 
   // ==================== Import Session Management ====================
@@ -93,14 +176,14 @@ export function registerApiHandlers(_ctx: IpcContext): void {
   ipcMain.handle(
     'api:addImportSessions',
     (_event, sourceId: string, sessions: Array<{ name: string; remoteSessionId: string }>) => {
-      const added = addImportSessions(sourceId, sessions)
+      const added = dsManager.addSessions(sourceId, sessions)
       reloadTimer(sourceId)
       return added
     }
   )
 
   ipcMain.handle('api:removeImportSession', (_event, sourceId: string, sessionId: string) => {
-    const result = removeImportSession(sourceId, sessionId)
+    const result = dsManager.removeSession(sourceId, sessionId)
     reloadTimer(sourceId)
     return result
   })
@@ -108,11 +191,11 @@ export function registerApiHandlers(_ctx: IpcContext): void {
   // ==================== Sync ====================
 
   ipcMain.handle('api:triggerPull', async (_event, sourceId: string, sessionId?: string) => {
-    return triggerPull(sourceId, sessionId)
+    return pullEngine.triggerPull(sourceId, sessionId)
   })
 
   ipcMain.handle('api:triggerPullAll', async (_event, sourceId: string) => {
-    return triggerPullAll(sourceId)
+    return pullEngine.triggerPullAll(sourceId)
   })
 
   // ==================== Remote Discovery ====================
@@ -133,6 +216,8 @@ export function registerApiHandlers(_ctx: IpcContext): void {
  * Auto-start API server and Pull scheduler after app launch
  */
 export async function initApiServer(ctx: IpcContext): Promise<void> {
+  ensureInstances()
+
   await apiServer.autoStart()
 
   const status = apiServer.getStatus()
@@ -144,7 +229,11 @@ export async function initApiServer(ctx: IpcContext): Promise<void> {
     })
   }
 
-  initScheduler()
+  initScheduler({
+    dsManager,
+    pullEngine,
+    logger: syncLogger,
+  })
 }
 
 export async function cleanupApiServer(): Promise<void> {

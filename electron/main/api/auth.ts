@@ -4,7 +4,7 @@
 
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import { timingSafeEqual } from 'crypto'
-import { loadConfig } from './config'
+import { getConfig } from './index'
 import { unauthorized, errorResponse } from './errors'
 
 function safeTokenCompare(a: string, b: string): boolean {
@@ -23,7 +23,7 @@ export async function authHook(request: FastifyRequest, reply: FastifyReply): Pr
   }
 
   const token = authHeader.slice(7)
-  const config = loadConfig()
+  const config = getConfig()
 
   if (!config.token || !safeTokenCompare(token, config.token)) {
     const err = unauthorized()

@@ -1,19 +1,32 @@
 /**
  * ChatLab API — Server manager
  * Manages fastify server lifecycle
+ *
+ * Uses ConfigManager from @openchatlab/sync (via ipc/api.ts shared instance).
  */
 
 import type { FastifyInstance } from 'fastify'
 import { createServer } from './server'
-import { loadConfig, saveConfig, ensureToken, type ApiServerConfig } from './config'
 import { registerSystemRoutes } from './routes/system'
 import { registerSessionRoutes } from './routes/sessions'
 import { registerImportRoutes } from './routes/import'
 import { apiLogger } from './logger'
+import type { ConfigManager, ApiServerConfig } from '@openchatlab/sync'
 
 let server: FastifyInstance | null = null
 let startedAt: number | null = null
 let lastError: string | null = null
+let _configManager: ConfigManager | null = null
+
+/** Must be called before start/autoStart/setEnabled/setPort */
+export function setConfigManager(cm: ConfigManager): void {
+  _configManager = cm
+}
+
+function cm(): ConfigManager {
+  if (!_configManager) throw new Error('[ApiServer] ConfigManager not initialized. Call setConfigManager() first.')
+  return _configManager
+}
 
 export interface ApiServerStatus {
   running: boolean
@@ -25,7 +38,7 @@ export interface ApiServerStatus {
 export function getStatus(): ApiServerStatus {
   return {
     running: server !== null && startedAt !== null,
-    port: server !== null && startedAt !== null ? loadConfig().port : null,
+    port: server !== null && startedAt !== null ? cm().load().port : null,
     startedAt,
     error: lastError,
   }
@@ -37,8 +50,8 @@ export async function start(): Promise<void> {
     return
   }
 
-  const config = loadConfig()
-  ensureToken(config)
+  const config = cm().load()
+  cm().ensureToken(config)
   lastError = null
 
   try {
@@ -90,7 +103,7 @@ export async function restart(): Promise<void> {
  * Failures are silently recorded (does not affect normal app usage).
  */
 export async function autoStart(): Promise<void> {
-  const config = loadConfig()
+  const config = cm().load()
   if (!config.enabled) return
 
   try {
@@ -104,12 +117,12 @@ export async function autoStart(): Promise<void> {
  * Set enabled state (persisted)
  */
 export async function setEnabled(enabled: boolean): Promise<ApiServerStatus> {
-  const config = loadConfig()
+  const config = cm().load()
   config.enabled = enabled
-  saveConfig(config)
+  cm().save(config)
 
   if (enabled) {
-    ensureToken(config)
+    cm().ensureToken(config)
     try {
       await start()
     } catch {
@@ -126,11 +139,11 @@ export async function setEnabled(enabled: boolean): Promise<ApiServerStatus> {
  * Set port (persisted, requires server restart)
  */
 export async function setPort(port: number): Promise<ApiServerStatus> {
-  const config = loadConfig()
+  const config = cm().load()
   const wasRunning = server !== null
 
   config.port = port
-  saveConfig(config)
+  cm().save(config)
 
   if (wasRunning) {
     await stop()
@@ -145,5 +158,5 @@ export async function setPort(port: number): Promise<ApiServerStatus> {
 }
 
 export function getConfig(): ApiServerConfig {
-  return loadConfig()
+  return cm().load()
 }

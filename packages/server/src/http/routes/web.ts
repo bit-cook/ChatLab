@@ -34,6 +34,8 @@ import {
   getLaughAnalysis,
   getClusterGraph,
   getLanguagePreferenceAnalysis,
+  generateSessionIndex,
+  clearSessionIndex,
 } from '@openchatlab/core'
 import { createJiebaNlpProvider } from '@openchatlab/node-runtime'
 import { streamImport, detectFormat, detectAllFormats, getSupportedFormats, scanMultiChatFile } from '../../import'
@@ -458,50 +460,13 @@ export function registerWebRoutes(server: FastifyInstance, dbManager: DatabaseMa
   }>('/_web/sessions/:id/generate-index', async (request) => {
     const db = ensureWritableDb(dbManager, request.params.id)
     const gapThreshold = (request.body as any)?.gapThreshold ?? 1800
-
-    const messages = db.prepare('SELECT id, ts FROM message ORDER BY ts ASC').all() as Array<{ id: number; ts: number }>
-
-    if (messages.length === 0) return { sessionCount: 0 }
-
-    type SessionBound = { startTs: number; endTs: number; msgIds: number[] }
-    const sessions: SessionBound[] = []
-    let current: SessionBound = { startTs: messages[0].ts, endTs: messages[0].ts, msgIds: [messages[0].id] }
-
-    for (let i = 1; i < messages.length; i++) {
-      const gap = messages[i].ts - messages[i - 1].ts
-      if (gap > gapThreshold) {
-        sessions.push(current)
-        current = { startTs: messages[i].ts, endTs: messages[i].ts, msgIds: [messages[i].id] }
-      } else {
-        current.endTs = messages[i].ts
-        current.msgIds.push(messages[i].id)
-      }
-    }
-    sessions.push(current)
-
-    const insertSession = db.prepare('INSERT INTO chat_session (start_ts, end_ts, message_count) VALUES (?, ?, ?)')
-    const insertCtx = db.prepare('INSERT OR REPLACE INTO message_context (message_id, session_id) VALUES (?, ?)')
-
-    db.transaction(() => {
-      db.prepare('DELETE FROM chat_session').run()
-      db.prepare('DELETE FROM message_context').run()
-
-      for (const s of sessions) {
-        const info = insertSession.run(s.startTs, s.endTs, s.msgIds.length)
-        const rowId = info.lastInsertRowid
-        for (const msgId of s.msgIds) {
-          insertCtx.run(msgId, rowId)
-        }
-      }
-    })
-
-    return { sessionCount: sessions.length }
+    const sessionCount = generateSessionIndex(db, gapThreshold)
+    return { sessionCount }
   })
 
   server.post<{ Params: { id: string } }>('/_web/sessions/:id/clear-index', async (request) => {
     const db = ensureWritableDb(dbManager, request.params.id)
-    db.prepare('DELETE FROM chat_session').run()
-    db.prepare('DELETE FROM message_context').run()
+    clearSessionIndex(db)
     return { success: true }
   })
 

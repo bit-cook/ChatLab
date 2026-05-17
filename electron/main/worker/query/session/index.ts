@@ -3,9 +3,10 @@
  * 提供会话索引管理、AI 工具查询、自定义筛选和导出等功能
  */
 
-// 类型定义
+// Types — core types re-exported via ./types, Electron-only types kept there
 export type {
   ChatSessionItem,
+  SessionIndexStats,
   SessionSearchResultItem,
   SessionMessagesResult,
   FilterMessage,

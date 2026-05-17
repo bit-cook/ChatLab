@@ -13,6 +13,17 @@ export {
   getSessionInfo,
   getSummaryCount,
   getLastPlatformMessageId,
+  // Session index (chat_session) helpers
+  DEFAULT_SESSION_GAP_THRESHOLD,
+  hasSessionIndex,
+  getSessionIndexStats,
+  getChatSessionList,
+  getChatSessionSummary,
+  saveChatSessionSummary,
+  updateSessionGapThreshold,
+  clearSessionIndex,
+  generateSessionIndex,
+  generateIncrementalSessionIndex,
 } from './session-queries'
 export type {
   SessionMeta,
@@ -23,6 +34,8 @@ export type {
   SessionSearchItem,
   SessionMessagesData,
   SessionSummaryData,
+  ChatSessionItem,
+  SessionIndexStats,
 } from './session-queries'
 
 export {

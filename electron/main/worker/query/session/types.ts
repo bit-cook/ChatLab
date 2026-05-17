@@ -1,22 +1,11 @@
 /**
- * 会话模块类型定义
+ * Session module type definitions.
+ * Core types (ChatSessionItem, DEFAULT_SESSION_GAP_THRESHOLD) are re-exported
+ * from @openchatlab/core; Electron-only types remain here.
  */
 
-/** 默认会话切分阈值：30分钟（秒） */
-export const DEFAULT_SESSION_GAP_THRESHOLD = 1800
-
-/**
- * 会话列表项类型
- */
-export interface ChatSessionItem {
-  id: number
-  startTs: number
-  endTs: number
-  messageCount: number
-  firstMessageId: number
-  /** 会话摘要（如果有） */
-  summary?: string | null
-}
+export { DEFAULT_SESSION_GAP_THRESHOLD } from '@openchatlab/core'
+export type { ChatSessionItem, SessionIndexStats } from '@openchatlab/core'
 
 /**
  * 会话搜索结果项类型（用于 AI 工具）

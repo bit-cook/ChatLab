@@ -13,7 +13,7 @@ import { aiLogger } from '../logger'
 import { resolveApiKey, writeAuthProfile } from '@openchatlab/config'
 import { buildChatLabUserAgentHeaders } from '../../utils/httpHeaders'
 import { t } from '../../i18n'
-import { completeSimple, type PiModel, type PiApi } from '@openchatlab/node-runtime'
+import { completeSimple, buildPiModel as buildPiModelCore, type PiModel, type PiApi } from '@openchatlab/node-runtime'
 
 // 新模型系统导出
 export { BUILTIN_PROVIDERS, getBuiltinProviderById } from './provider-registry'
@@ -424,106 +424,13 @@ export function getProviderInfo(provider: LLMProvider): ProviderInfo | null {
 
 // ==================== pi-ai Model 构建 ====================
 
-/**
- * 规范化 Anthropic baseUrl：Anthropic SDK 内部会拼接 /v1/messages，
- * 因此 baseUrl 不应包含 /v1 后缀，否则会导致 /v1/v1/messages 双重路径。
- */
-function normalizeAnthropicBaseUrl(url: string): string {
-  return url.replace(/\/v1\/?$/, '')
-}
-
-/**
- * 规范化 OpenAI Compatible baseUrl：
- * 用户经常忘记在域名后加 /v1，OpenAI SDK 不会自动补全。
- * 如果 URL 没有以 /v1 结尾且路径部分为空或仅有 /，自动补上。
- * 已有具体路径（如 /api/v1、/proxy）的不做修改。
- */
-function normalizeOpenAICompatibleBaseUrl(url: string): string {
-  if (!url) return url
-  const trimmed = url.replace(/\/+$/, '')
-  if (trimmed.endsWith('/v1')) return trimmed
-  try {
-    const parsed = new URL(trimmed)
-    // 仅当路径为空或 "/" 时补全 /v1，避免破坏已有的自定义路径
-    if (parsed.pathname === '/' || parsed.pathname === '') {
-      return trimmed + '/v1'
-    }
-  } catch {
-    // URL 解析失败，不做处理
-  }
-  return trimmed
-}
-
-const DEFAULT_CONTEXT_WINDOW = 128000
-
 export function buildPiModel(config: AIServiceConfig): PiModel<PiApi> {
-  const providerDef = getBuiltinProviderById(config.provider)
-  const providerInfo = getProviderInfo(config.provider)
-  const baseUrl = config.baseUrl || providerDef?.defaultBaseUrl || providerInfo?.defaultBaseUrl || ''
-  const modelId = config.model || providerInfo?.models?.[0]?.id || ''
+  validateProviderBaseUrl(config.provider, config.baseUrl)
 
-  validateProviderBaseUrl(config.provider, baseUrl)
-
-  const modelDef = findModelDefinition(config.provider, modelId)
-  const contextWindow = modelDef?.contextWindow ?? DEFAULT_CONTEXT_WINDOW
-
-  const BUILTIN_PROVIDER_API: Record<string, PiApi> = {
-    gemini: 'google-generative-ai',
-    anthropic: 'anthropic-messages',
-  }
-
-  const apiFormat: PiApi = (config.apiFormat as PiApi) || BUILTIN_PROVIDER_API[config.provider] || 'openai-completions'
-
-  if (apiFormat === 'google-generative-ai') {
-    return {
-      id: modelId,
-      name: modelId,
-      api: 'google-generative-ai',
-      provider: 'google',
-      baseUrl,
-      reasoning: false,
-      input: ['text'],
-      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-      contextWindow,
-      maxTokens: config.maxTokens ?? 8192,
-    }
-  }
-
-  if (apiFormat === 'anthropic-messages') {
-    return {
-      id: modelId,
-      name: modelId,
-      api: 'anthropic-messages',
-      provider: 'anthropic',
-      baseUrl: normalizeAnthropicBaseUrl(baseUrl),
-      reasoning: false,
-      input: ['text'],
-      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-      contextWindow,
-      maxTokens: config.maxTokens ?? 8192,
-    }
-  }
-
-  // openai-compatible + openai-completions/openai-responses：自动补全 /v1（用户经常忘记）
-  const resolvedBaseUrl =
-    config.provider === 'openai-compatible' && (apiFormat === 'openai-completions' || apiFormat === 'openai-responses')
-      ? normalizeOpenAICompatibleBaseUrl(baseUrl)
-      : baseUrl
-
-  return {
-    id: modelId,
-    name: modelId,
-    api: apiFormat,
-    provider: config.provider,
-    baseUrl: resolvedBaseUrl,
+  return buildPiModelCore(config, {
+    findModelFn: findModelDefinition,
     headers: config.provider === 'openai-compatible' ? buildChatLabUserAgentHeaders() : undefined,
-    reasoning: config.isReasoningModel ?? false,
-    input: ['text'],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow,
-    maxTokens: config.maxTokens ?? 4096,
-    compat: config.disableThinking ? { thinkingFormat: 'qwen' } : undefined,
-  }
+  })
 }
 
 // ==================== 远程模型列表获取 ====================

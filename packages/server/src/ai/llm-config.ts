@@ -10,8 +10,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import type { PiModel, PiApi } from '@openchatlab/node-runtime'
-import { BUILTIN_PROVIDERS, getBuiltinModelsByProvider, BUILTIN_MODELS } from '@openchatlab/core'
-import type { ModelDefinition } from '@openchatlab/core'
+import { buildPiModel as buildPiModelCore, type PiModelConfig } from '@openchatlab/node-runtime'
 import { resolveApiKey, writeAuthProfile } from '@openchatlab/config'
 import { randomUUID } from 'crypto'
 
@@ -253,93 +252,6 @@ function loadRawConfigStore(aiDataDir: string): AIConfigStore {
 
 // ==================== PiModel Builder ====================
 
-const DEFAULT_CONTEXT_WINDOW = 128000
-
-function findModelDefinition(providerId: string, modelId: string): ModelDefinition | null {
-  const builtinForProvider = getBuiltinModelsByProvider(providerId)
-  return builtinForProvider.find((m) => m.id === modelId) || BUILTIN_MODELS.find((m) => m.id === modelId) || null
-}
-
-function normalizeAnthropicBaseUrl(url: string): string {
-  return url.replace(/\/v1\/?$/, '')
-}
-
-function normalizeOpenAICompatibleBaseUrl(url: string): string {
-  if (!url) return url
-  const trimmed = url.replace(/\/+$/, '')
-  if (trimmed.endsWith('/v1')) return trimmed
-  try {
-    const parsed = new URL(trimmed)
-    if (parsed.pathname === '/' || parsed.pathname === '') {
-      return trimmed + '/v1'
-    }
-  } catch {
-    // ignore
-  }
-  return trimmed
-}
-
 export function buildPiModel(config: AIServiceConfig): PiModel<PiApi> {
-  const providerDef = BUILTIN_PROVIDERS.find((p) => p.id === config.provider)
-  const baseUrl = config.baseUrl || providerDef?.defaultBaseUrl || ''
-  const modelId = config.model || ''
-
-  const modelDef = findModelDefinition(config.provider, modelId)
-  const contextWindow = modelDef?.contextWindow ?? DEFAULT_CONTEXT_WINDOW
-
-  const BUILTIN_PROVIDER_API: Record<string, PiApi> = {
-    gemini: 'google-generative-ai',
-    anthropic: 'anthropic-messages',
-  }
-
-  const apiFormat: PiApi = (config.apiFormat as PiApi) || BUILTIN_PROVIDER_API[config.provider] || 'openai-completions'
-
-  if (apiFormat === 'google-generative-ai') {
-    return {
-      id: modelId,
-      name: modelId,
-      api: 'google-generative-ai',
-      provider: 'google',
-      baseUrl,
-      reasoning: false,
-      input: ['text'],
-      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-      contextWindow,
-      maxTokens: config.maxTokens ?? 8192,
-    }
-  }
-
-  if (apiFormat === 'anthropic-messages') {
-    return {
-      id: modelId,
-      name: modelId,
-      api: 'anthropic-messages',
-      provider: 'anthropic',
-      baseUrl: normalizeAnthropicBaseUrl(baseUrl),
-      reasoning: false,
-      input: ['text'],
-      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-      contextWindow,
-      maxTokens: config.maxTokens ?? 8192,
-    }
-  }
-
-  const resolvedBaseUrl =
-    config.provider === 'openai-compatible' && (apiFormat === 'openai-completions' || apiFormat === 'openai-responses')
-      ? normalizeOpenAICompatibleBaseUrl(baseUrl)
-      : baseUrl
-
-  return {
-    id: modelId,
-    name: modelId,
-    api: apiFormat,
-    provider: config.provider,
-    baseUrl: resolvedBaseUrl,
-    reasoning: config.isReasoningModel ?? false,
-    input: ['text'],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow,
-    maxTokens: config.maxTokens ?? 4096,
-    compat: config.disableThinking ? { thinkingFormat: 'qwen' } : undefined,
-  }
+  return buildPiModelCore(config as PiModelConfig)
 }

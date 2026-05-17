@@ -86,6 +86,10 @@ export type {
 export type { AgentCoreOptions, AgentCoreEvent, AgentCoreResult, AgentTokenUsage, SimpleHistoryMessage } from './ai'
 export { runAgentCore } from './ai'
 
+// LLM Model Builder
+export { buildPiModel, normalizeAnthropicBaseUrl, normalizeOpenAICompatibleBaseUrl } from './ai'
+export type { PiModelConfig, BuildPiModelOptions } from './ai'
+
 // Re-exports: @mariozechner/pi-agent-core & @mariozechner/pi-ai
 export type { AgentTool, AgentToolResult } from './ai'
 export { Type, completeSimple, streamSimple } from './ai'

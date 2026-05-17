@@ -62,6 +62,10 @@ export type { PreprocessingPipelineOptions, PreprocessingPipelineResult } from '
 export type { AgentCoreOptions, AgentCoreEvent, AgentCoreResult, AgentTokenUsage, SimpleHistoryMessage } from './agent'
 export { runAgentCore } from './agent'
 
+// LLM Model Builder
+export { buildPiModel, normalizeAnthropicBaseUrl, normalizeOpenAICompatibleBaseUrl } from './llm-builder'
+export type { PiModelConfig, BuildPiModelOptions } from './llm-builder'
+
 // Re-exports from @mariozechner/pi-agent-core
 export type { AgentTool, AgentToolResult } from '@mariozechner/pi-agent-core'
 

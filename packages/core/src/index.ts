@@ -201,6 +201,9 @@ export {
   getBuiltinModelById,
 } from './ai'
 
+// Import utilities
+export { generateMessageKey } from './import'
+
 // Schema 与迁移
 export {
   CURRENT_SCHEMA_VERSION,

@@ -8,7 +8,7 @@
 import * as fs from 'fs'
 import * as crypto from 'crypto'
 import type { DatabaseAdapter } from '@openchatlab/core'
-import { CHAT_DB_SCHEMA, FTS_TABLE_SCHEMA } from '@openchatlab/core'
+import { CHAT_DB_SCHEMA, FTS_TABLE_SCHEMA, generateMessageKey } from '@openchatlab/core'
 import type { DatabaseManager } from '@openchatlab/node-runtime'
 import { openBetterSqliteDatabase } from '@openchatlab/node-runtime'
 import type { ParsedData, ImportMessage } from './chatlab-reader'
@@ -33,11 +33,6 @@ function generateSessionId(): string {
   const ts = Date.now()
   const rand = crypto.randomBytes(4).toString('hex')
   return `chat_${ts}_${rand}`
-}
-
-function generateMessageKey(ts: number, senderPlatformId: string, content: string | null): string {
-  const raw = `${ts}|${senderPlatformId}|${content ?? ''}`
-  return crypto.createHash('sha256').update(raw).digest('hex').slice(0, 16)
 }
 
 /**

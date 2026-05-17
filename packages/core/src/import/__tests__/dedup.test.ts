@@ -30,10 +30,10 @@ describe('generateMessageKey', () => {
     assert.notEqual(a, b)
   })
 
-  it('returns a base64url string (no +, /, =)', () => {
+  it('returns a non-empty hex string', () => {
     const key = generateMessageKey(ts, sender, 'test content')
     assert.ok(key.length > 0)
-    assert.ok(!/[+/=]/.test(key), `key should be base64url but got: ${key}`)
+    assert.ok(/^[0-9a-f]+$/.test(key), `key should be hex but got: ${key}`)
   })
 
   it('is deterministic for identical inputs', () => {

@@ -31,6 +31,8 @@ export {
   downloadDict,
   deleteDict,
   ensureDefaultDict,
+  tokenizeForFts,
+  tokenizeQueryForFts,
 } from './nlp'
 
 // AI 助手/技能解析器 + 对话管理

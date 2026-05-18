@@ -46,6 +46,7 @@ import {
   type PiTextContent,
   generateSessionSummary,
   type SummaryDeps,
+  exportFilterResultToMarkdown,
 } from '@openchatlab/node-runtime'
 import {
   getChatSessionSummary,
@@ -502,6 +503,60 @@ export function registerWebRoutes(server: FastifyInstance, dbManager: DatabaseMa
       return stmt.all(...params)
     }
     return stmt.all(params)
+  })
+
+  // ==================== 导出 ====================
+
+  server.post<{
+    Params: { id: string }
+    Body: {
+      sessionName: string
+      filterMode: 'condition' | 'session'
+      keywords?: string[]
+      timeFilter?: { startTs: number; endTs: number }
+      senderIds?: number[]
+      contextSize?: number
+      chatSessionIds?: number[]
+    }
+  }>('/_web/sessions/:id/export/markdown', async (request, reply) => {
+    const { id } = request.params
+    const body = request.body as any
+    const sessionName = body?.sessionName || id
+
+    const chunks: string[] = []
+    const result = exportFilterResultToMarkdown(
+      {
+        sessionId: id,
+        sessionName,
+        filterMode: body.filterMode || 'condition',
+        keywords: body.keywords,
+        timeFilter: body.timeFilter,
+        senderIds: body.senderIds,
+        contextSize: body.contextSize,
+        chatSessionIds: body.chatSessionIds,
+      },
+      {
+        openDatabase(sessionId: string) {
+          return dbManager.open(sessionId) ?? null
+        },
+      },
+      {
+        write(chunk: string) {
+          chunks.push(chunk)
+        },
+        end() {
+          /* collected in chunks array */
+        },
+      }
+    )
+
+    if (!result.success) {
+      return reply.code(500).send({ error: result.error })
+    }
+
+    reply.header('Content-Type', 'text/markdown; charset=utf-8')
+    reply.header('Content-Disposition', `attachment; filename="${encodeURIComponent(sessionName)}_export.md"`)
+    return reply.send(chunks.join(''))
   })
 
   // ==================== 会话索引 ====================

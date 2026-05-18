@@ -21,6 +21,8 @@ export {
   getChatSessionSummary,
   saveChatSessionSummary,
   updateSessionGapThreshold,
+  updateSessionOwnerId,
+  renameSession,
   clearSessionIndex,
   generateSessionIndex,
   generateIncrementalSessionIndex,

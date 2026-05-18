@@ -585,6 +585,20 @@ export function updateSessionGapThreshold(db: DatabaseAdapter, gapThreshold: num
 }
 
 /**
+ * Update session owner_id in meta table.
+ */
+export function updateSessionOwnerId(db: DatabaseAdapter, ownerId: string | null): void {
+  db.prepare('UPDATE meta SET owner_id = ?').run(ownerId)
+}
+
+/**
+ * Rename a session (update name in meta table).
+ */
+export function renameSession(db: DatabaseAdapter, newName: string): void {
+  db.prepare('UPDATE meta SET name = ?').run(newName)
+}
+
+/**
  * Delete all session index data (chat_session + message_context).
  */
 export function clearSessionIndex(db: DatabaseAdapter): void {

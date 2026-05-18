@@ -6,7 +6,12 @@
 import Database from 'better-sqlite3'
 import * as fs from 'fs'
 import * as path from 'path'
-import { CHAT_DB_SCHEMA, FTS_TABLE_SCHEMA } from '@openchatlab/core'
+import {
+  CHAT_DB_SCHEMA,
+  FTS_TABLE_SCHEMA,
+  updateSessionOwnerId as coreUpdateOwnerId,
+  renameSession as coreRenameSession,
+} from '@openchatlab/core'
 import { BetterSqliteAdapter, writeParseResultToDb } from '@openchatlab/node-runtime'
 import type { ParseResult } from '../../../src/types/base'
 import { migrateDatabase, needsMigration, CURRENT_SCHEMA_VERSION } from './migrations'
@@ -118,15 +123,11 @@ export function importData(parseResult: ParseResult): string {
  * 更新会话的 ownerId
  */
 export function updateSessionOwnerId(sessionId: string, ownerId: string | null): boolean {
-  // 使用带迁移的打开方式，确保 owner_id 列存在
   const db = openDatabaseWithMigration(sessionId)
-  if (!db) {
-    return false
-  }
+  if (!db) return false
 
   try {
-    const stmt = db.prepare('UPDATE meta SET owner_id = ?')
-    stmt.run(ownerId)
+    coreUpdateOwnerId(new BetterSqliteAdapter(db), ownerId)
     return true
   } catch (error) {
     console.error('[Database] Failed to update session ownerId:', error)
@@ -169,22 +170,18 @@ export function deleteSession(sessionId: string): boolean {
  */
 export function renameSession(sessionId: string, newName: string): boolean {
   const dbPath = getDbPath(sessionId)
-  if (!fs.existsSync(dbPath)) {
-    return false
-  }
+  if (!fs.existsSync(dbPath)) return false
 
+  const db = new Database(dbPath)
+  db.pragma('journal_mode = WAL')
   try {
-    const db = new Database(dbPath)
-    db.pragma('journal_mode = WAL')
-
-    const stmt = db.prepare('UPDATE meta SET name = ?')
-    stmt.run(newName)
-
-    db.close()
+    coreRenameSession(new BetterSqliteAdapter(db), newName)
     return true
   } catch (error) {
     console.error('[Database] Failed to rename session:', error)
     return false
+  } finally {
+    db.close()
   }
 }
 

@@ -44,7 +44,7 @@ function buildDeps(requestId: string): IncrementalImportDeps {
         const { computeAndSetOverviewCache } = await import('../../database/sessionCache')
         const dbPath = getDbPath(sessionId)
         const rawDb = new Database(dbPath)
-        computeAndSetOverviewCache(rawDb, sessionId, getCacheDir())
+        computeAndSetOverviewCache(new BetterSqliteAdapter(rawDb), sessionId, getCacheDir())
         rawDb.close()
       } catch {
         /* non-fatal */

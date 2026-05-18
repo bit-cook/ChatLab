@@ -8,6 +8,7 @@
  */
 
 import Database from 'better-sqlite3'
+import { BetterSqliteAdapter } from '@openchatlab/node-runtime'
 import * as fs from 'fs'
 import * as path from 'path'
 import { openDatabase, getDbDir, getDbPath, getCacheDir } from '../core'
@@ -89,7 +90,7 @@ function resolveOverview(db: Database.Database, sessionId: string, cacheDir: str
   let cached = cacheDir ? getCache<OverviewCache>(sessionId, CACHE_KEY_OVERVIEW, cacheDir) : null
   if (!cached && cacheDir) {
     try {
-      cached = computeAndSetOverviewCache(db, sessionId, cacheDir)
+      cached = computeAndSetOverviewCache(new BetterSqliteAdapter(db), sessionId, cacheDir)
     } catch {
       // cache compute failure — fall through to live query
     }
@@ -197,7 +198,7 @@ export function getChatOverview(sessionId: string, topN: number = 10) {
   let membersCache = getCache<MembersCache>(sessionId, CACHE_KEY_MEMBERS, cacheDir)
   if (!membersCache) {
     try {
-      membersCache = computeAndSetMembersCache(db, sessionId, cacheDir)
+      membersCache = computeAndSetMembersCache(new BetterSqliteAdapter(db), sessionId, cacheDir)
     } catch {
       // fallback: no member data
     }

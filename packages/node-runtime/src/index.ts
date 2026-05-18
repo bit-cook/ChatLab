@@ -188,6 +188,20 @@ export type { PiModelConfig, BuildPiModelOptions } from './ai'
 export { fetchRemoteModels, validateApiKey } from './ai'
 export type { RemoteModel, FetchRemoteModelsResult, RemoteApiOptions } from './ai'
 
+// Session cache (overview + members JSON file cache)
+export {
+  getCachePath,
+  getCache,
+  setCache,
+  invalidateCache,
+  deleteSessionCache,
+  computeAndSetOverviewCache,
+  computeAndSetMembersCache,
+  CACHE_KEY_OVERVIEW,
+  CACHE_KEY_MEMBERS,
+} from './cache'
+export type { OverviewCache, MembersCache, MemberStat } from './cache'
+
 // Chat DB migrations
 export { getChatDbMigrations } from './migrations'
 export type { MigrationDeps } from './migrations'

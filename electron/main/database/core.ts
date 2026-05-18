@@ -6,6 +6,7 @@
 import Database from 'better-sqlite3'
 import * as fs from 'fs'
 import * as path from 'path'
+import { CHAT_DB_SCHEMA, FTS_TABLE_SCHEMA } from '@openchatlab/core'
 import type { ParseResult } from '../../../src/types/base'
 import { migrateDatabase, needsMigration, CURRENT_SCHEMA_VERSION } from './migrations'
 import { getDatabaseDir, getCacheDir, ensureDir } from '../paths'
@@ -51,82 +52,8 @@ function createDatabase(sessionId: string): Database.Database {
 
   db.pragma('journal_mode = WAL')
 
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS meta (
-      name TEXT NOT NULL,
-      platform TEXT NOT NULL,
-      type TEXT NOT NULL,
-      imported_at INTEGER NOT NULL,
-      group_id TEXT,
-      group_avatar TEXT,
-      owner_id TEXT,
-      schema_version INTEGER DEFAULT ${CURRENT_SCHEMA_VERSION},
-      session_gap_threshold INTEGER
-    );
-
-    CREATE TABLE IF NOT EXISTS member (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      platform_id TEXT NOT NULL UNIQUE,
-      account_name TEXT,
-      group_nickname TEXT,
-      aliases TEXT DEFAULT '[]',
-      avatar TEXT,
-      roles TEXT DEFAULT '[]'
-    );
-
-    CREATE TABLE IF NOT EXISTS member_name_history (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      member_id INTEGER NOT NULL,
-      name_type TEXT NOT NULL,
-      name TEXT NOT NULL,
-      start_ts INTEGER NOT NULL,
-      end_ts INTEGER,
-      FOREIGN KEY(member_id) REFERENCES member(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS message (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      sender_id INTEGER NOT NULL,
-      sender_account_name TEXT,
-      sender_group_nickname TEXT,
-      ts INTEGER NOT NULL,
-      type INTEGER NOT NULL,
-      content TEXT,
-      reply_to_message_id TEXT DEFAULT NULL,
-      platform_message_id TEXT DEFAULT NULL,
-      FOREIGN KEY(sender_id) REFERENCES member(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS chat_session (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      start_ts INTEGER NOT NULL,
-      end_ts INTEGER NOT NULL,
-      message_count INTEGER DEFAULT 0,
-      is_manual INTEGER DEFAULT 0,
-      summary TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS message_context (
-      message_id INTEGER PRIMARY KEY,
-      session_id INTEGER NOT NULL,
-      topic_id INTEGER
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_message_ts ON message(ts);
-    CREATE INDEX IF NOT EXISTS idx_message_sender ON message(sender_id);
-    CREATE INDEX IF NOT EXISTS idx_message_platform_id ON message(platform_message_id);
-    CREATE INDEX IF NOT EXISTS idx_member_name_history_member_id ON member_name_history(member_id);
-    CREATE INDEX IF NOT EXISTS idx_session_time ON chat_session(start_ts, end_ts);
-    CREATE INDEX IF NOT EXISTS idx_context_session ON message_context(session_id);
-  `)
-
-  db.exec(`
-    CREATE VIRTUAL TABLE IF NOT EXISTS message_fts USING fts5(
-      content,
-      content='',
-      content_rowid=id
-    )
-  `)
+  db.exec(CHAT_DB_SCHEMA)
+  db.exec(FTS_TABLE_SCHEMA)
 
   return db
 }

@@ -18,10 +18,11 @@ import {
   getMembers,
   executeReadonlySql,
 } from '@openchatlab/core'
+import { getVersion } from './version'
 
 const program = new Command()
 
-program.name('chatlab').description('ChatLab - 聊天记录分析工具').version('0.0.1')
+program.name('chatlab').description('ChatLab - 聊天记录分析工具').version(getVersion())
 
 // chatlab sessions - 列出所有会话
 program
@@ -295,7 +296,7 @@ program
 
     let webRoot: string | undefined
     if (options.web !== undefined) {
-      const webDir = typeof options.web === 'string' ? options.web : path.resolve(__dirname, '../../dist-web')
+      const webDir = typeof options.web === 'string' ? options.web : path.resolve(__dirname, '../dist-web')
       if (fs.existsSync(webDir)) {
         webRoot = path.resolve(webDir)
       } else {

@@ -1,0 +1,27 @@
+import { defineConfig } from 'tsup'
+
+export default defineConfig({
+  entry: {
+    cli: 'src/cli.ts',
+    index: 'src/index.ts',
+  },
+  format: ['esm'],
+  outDir: 'dist',
+  splitting: true,
+  sourcemap: true,
+  clean: true,
+  target: 'node20',
+  platform: 'node',
+  noExternal: [/^@openchatlab\//, 'stream-json'],
+  external: ['better-sqlite3', '@node-rs/jieba'],
+  banner: {
+    js: [
+      "import { createRequire as __createRequire } from 'module';",
+      "import { dirname as __pathDirname } from 'path';",
+      "import { fileURLToPath as __fileURLToPath } from 'url';",
+      'const require = __createRequire(import.meta.url);',
+      'const __filename = __fileURLToPath(import.meta.url);',
+      'const __dirname = __pathDirname(__filename);',
+    ].join('\n'),
+  },
+})

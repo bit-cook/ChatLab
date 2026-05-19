@@ -14,6 +14,7 @@ import { NodePathProvider, DatabaseManager } from '@openchatlab/node-runtime'
 import { getSessionMeta, getSessionOverview, getDatabaseSchema } from '@openchatlab/core'
 import { MCP_TOOL_REGISTRY, CoreDataProvider } from '@openchatlab/tools'
 import type { SessionListContext } from '@openchatlab/tools/src/definitions/sessions'
+import { getVersion } from './version'
 
 const MCP_TOOL_PREFIX = 'chatlab_'
 
@@ -73,7 +74,7 @@ export async function startMcpServer(): Promise<void> {
 
   const server = new McpServer({
     name: 'chatlab',
-    version: '0.0.1',
+    version: getVersion(),
   })
 
   // --- 注册 Tools ---

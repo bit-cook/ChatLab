@@ -8,9 +8,7 @@
 import type { FastifyInstance } from 'fastify'
 import type { DatabaseManager } from '@openchatlab/node-runtime'
 import { successResponse } from '../errors'
-
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pkg = require('../../../package.json') as { version: string }
+import { getVersion } from '../../version'
 
 export function registerSystemRoutes(server: FastifyInstance, dbManager: DatabaseManager): void {
   server.get('/api/v1/status', async () => {
@@ -23,7 +21,7 @@ export function registerSystemRoutes(server: FastifyInstance, dbManager: Databas
 
     return successResponse({
       name: 'ChatLab API',
-      version: pkg.version,
+      version: getVersion(),
       uptime: Math.floor(process.uptime()),
       sessionCount,
     })

@@ -11,6 +11,7 @@ export {
   closeAllDatabases,
   getDbDir,
   getCacheDir,
+  getTempDir,
   buildTimeFilter,
   buildSystemMessageFilter,
   wrapAsDatabaseAdapter,

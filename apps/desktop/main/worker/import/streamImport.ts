@@ -7,17 +7,20 @@
  */
 
 import * as fs from 'fs'
+import * as path from 'path'
 import Database from 'better-sqlite3'
 import {
   BetterSqliteAdapter,
   streamingImport,
   analyzeNewImport as sharedAnalyzeNewImport,
   streamParseFileInfo as sharedStreamParseFileInfo,
+  TEMP_DB_SCHEMA,
 } from '@openchatlab/node-runtime'
 import type { StreamImportDeps, StreamImportResult, ImportLogger } from '@openchatlab/node-runtime'
 import { sendProgress, generateSessionId, getDbPath, createDatabaseWithoutIndexes } from './utils'
-import { getCacheDir } from '../core'
 import {
+  getCacheDir,
+  getTempDir,
   initPerfLog,
   logPerf,
   logPerfDetail,
@@ -27,11 +30,28 @@ import {
   logInfo,
   logSummary,
 } from '../core'
-import { generateTempDbPath, createTempDatabase } from '../../merger/tempCache'
 
 export type { StreamImportResult }
 export type { AnalyzeNewImportResult, StreamParseFileInfoResult } from '@openchatlab/node-runtime'
 export type { SkipReasons, ImportDiagnostics } from '@openchatlab/node-runtime'
+
+function generateTempDbPath(sourceFilePath: string): string {
+  const timestamp = Date.now()
+  const random = Math.random().toString(36).substring(2, 8)
+  const baseName = path.basename(sourceFilePath, path.extname(sourceFilePath))
+  const safeName = baseName.replace(/[/\\?%*:|"<>]/g, '_').substring(0, 50)
+  const tempDir = getTempDir()
+  if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true })
+  return path.join(tempDir, `merge_${safeName}_${timestamp}_${random}.db`)
+}
+
+function createTempDatabase(dbPath: string): Database.Database {
+  const db = new Database(dbPath)
+  db.pragma('journal_mode = WAL')
+  db.pragma('synchronous = NORMAL')
+  db.exec(TEMP_DB_SCHEMA)
+  return db
+}
 
 function buildElectronLogger(): ImportLogger {
   return {

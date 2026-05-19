@@ -8,20 +8,17 @@ import * as fs from 'fs'
 import * as path from 'path'
 import type { DatabaseAdapter, PreparedStatement, RunResult } from '@openchatlab/core'
 
-// 数据库目录（由 Worker 初始化时设置）
 let DB_DIR: string = ''
-// 缓存目录（由 Worker 初始化时设置）
 let CACHE_DIR: string = ''
+let TEMP_DIR: string = ''
 
 // 数据库连接缓存
 const dbCache = new Map<string, Database.Database>()
 
-/**
- * 初始化数据库目录
- */
-export function initDbDir(dir: string, cacheDir?: string): void {
+export function initDbDir(dir: string, cacheDir?: string, tempDir?: string): void {
   DB_DIR = dir
   if (cacheDir) CACHE_DIR = cacheDir
+  if (tempDir) TEMP_DIR = tempDir
 }
 
 /**
@@ -83,6 +80,10 @@ export function getDbDir(): string {
 
 export function getCacheDir(): string {
   return CACHE_DIR
+}
+
+export function getTempDir(): string {
+  return TEMP_DIR
 }
 
 // ==================== 时间过滤工具 ====================

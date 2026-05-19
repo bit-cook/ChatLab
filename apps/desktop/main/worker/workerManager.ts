@@ -10,7 +10,7 @@ import * as fs from 'fs'
 import type { ParseProgress } from '../parser'
 import type { StreamImportResult } from './import'
 
-import { getDatabaseDir, getCacheDir, ensureDir } from '../paths'
+import { getDatabaseDir, getCacheDir, getTempDir, ensureDir } from '../paths'
 import { getNlpDir } from '../nlp/dictManager'
 
 // Worker 实例
@@ -131,6 +131,7 @@ export function initWorker(): void {
       workerData: {
         dbDir: getDbDir(),
         cacheDir: getCacheDir(),
+        tempDir: getTempDir(),
         nlpDir: getNlpDir(),
       },
     })

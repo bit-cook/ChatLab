@@ -13,6 +13,31 @@ import type { Migration, MigrationContext } from './types'
 import { isEncrypted, decryptApiKey } from './crypto-legacy'
 import { writeAuthProfile } from '../auth-profiles'
 
+/**
+ * Derive a human-readable profile name from config fields.
+ * Official providers → provider id (e.g. "deepseek")
+ * openai-compatible → hostname from baseUrl (e.g. "api.example.com") or config name
+ */
+function deriveProfileName(provider: string, config: Record<string, unknown>): string {
+  if (provider !== 'openai-compatible') {
+    return provider.toLowerCase().replace(/\s+/g, '-')
+  }
+
+  const baseUrl = config.baseUrl as string
+  if (baseUrl) {
+    try {
+      return new URL(baseUrl).hostname.toLowerCase()
+    } catch {
+      // invalid URL, fall through
+    }
+  }
+
+  const name = config.name as string
+  if (name) return name.toLowerCase().replace(/\s+/g, '-')
+
+  return 'custom'
+}
+
 export const m004EncryptedKeysToAuthProfiles: Migration = {
   version: 4,
   name: 'encrypted-keys-to-auth-profiles',
@@ -31,34 +56,40 @@ export const m004EncryptedKeysToAuthProfiles: Migration = {
 
     const configs = (data.configs as Array<Record<string, unknown>>) || []
     let migrated = false
+    const usedProfileNames = new Set<string>()
 
     for (const config of configs) {
       const apiKey = config.apiKey as string
       if (!apiKey) continue
 
-      if (isEncrypted(apiKey)) {
-        const plainKey = decryptApiKey(apiKey)
-        if (plainKey) {
-          const provider = (config.provider as string) || 'unknown'
-          const name = (config.name as string) || provider
-          const profileName = name.toLowerCase().replace(/\s+/g, '-')
+      const provider = (config.provider as string) || 'unknown'
+      let plainKey: string | null = null
 
-          writeAuthProfile(profileName, { type: 'api_key', provider, key: plainKey })
-          config.apiKey = ''
-          migrated = true
-          ctx.logger.info('Migration', `Migrated API key for "${name}" to auth-profiles.json`)
-        } else {
+      if (isEncrypted(apiKey)) {
+        plainKey = decryptApiKey(apiKey)
+        if (!plainKey) {
           ctx.logger.warn('Migration', `Failed to decrypt API key for "${config.name}", skipping`)
+          continue
         }
       } else if (apiKey.length > 0) {
-        const provider = (config.provider as string) || 'unknown'
-        const name = (config.name as string) || provider
-        const profileName = name.toLowerCase().replace(/\s+/g, '-')
+        plainKey = apiKey
+      }
 
-        writeAuthProfile(profileName, { type: 'api_key', provider, key: apiKey })
+      if (plainKey) {
+        const baseName = deriveProfileName(provider, config)
+
+        let profileName = baseName
+        if (usedProfileNames.has(profileName)) {
+          let i = 2
+          while (usedProfileNames.has(`${profileName}-${i}`)) i++
+          profileName = `${profileName}-${i}`
+        }
+        usedProfileNames.add(profileName)
+
+        writeAuthProfile(profileName, { type: 'api_key', provider, key: plainKey })
         config.apiKey = ''
         migrated = true
-        ctx.logger.info('Migration', `Migrated plaintext API key for "${name}" to auth-profiles.json`)
+        ctx.logger.info('Migration', `Migrated API key → profile "${profileName}"`)
       }
     }
 

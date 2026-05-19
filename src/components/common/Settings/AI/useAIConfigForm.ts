@@ -597,32 +597,22 @@ export function useAIConfigForm(props: {
   // ============ 保存 ============
 
   function generateName(): string {
-    let providerName: string
-
     if (isCompatMode.value && formData.value.baseUrl) {
       try {
         const url = new URL(formData.value.baseUrl)
-        providerName = url.hostname
+        return url.hostname
       } catch {
-        providerName = t('settings.aiConfig.modal.customService')
+        return t('settings.aiConfig.modal.customService')
       }
-    } else {
-      const def = currentProviderDef.value
-      providerName = def
-        ? getLocalizedProviderName(def.id) || def.name
-        : (() => {
-            const legacy = props.providers.value.find((p) => p.id === formData.value.provider)
-            if (legacy) return legacy.name
-            return formData.value.baseUrl || t('settings.aiConfig.modal.customService')
-          })()
     }
 
-    const modelId = formData.value.model.trim()
-    if (!modelId) return providerName
+    const def = currentProviderDef.value
+    if (def) return getLocalizedProviderName(def.id) || def.name
 
-    const modelDef = llmStore.getModelById(formData.value.provider, modelId)
-    const modelName = modelDef?.name || modelId
-    return `${providerName} - ${modelName}`
+    const legacy = props.providers.value.find((p) => p.id === formData.value.provider)
+    if (legacy) return legacy.name
+
+    return formData.value.baseUrl || t('settings.aiConfig.modal.customService')
   }
 
   async function doSave() {

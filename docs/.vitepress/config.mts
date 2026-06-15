@@ -23,8 +23,11 @@ const enSidebar: DefaultTheme.SidebarItem[] = [
   },
   {
     text: 'Contributing',
-    items: [{ text: 'Development Guide', link: '/contributing/development' }],
+    items: [
+      { text: 'Development Guide', link: '/contributing/development' },
+    ],
   },
+  { text: 'Acknowledgments', link: '/contributing/acknowledgments' },
 ]
 
 const cnSidebar: DefaultTheme.SidebarItem[] = [
@@ -52,8 +55,11 @@ const cnSidebar: DefaultTheme.SidebarItem[] = [
   },
   {
     text: '贡献',
-    items: [{ text: '开发指南', link: '/cn/contributing/development' }],
+    items: [
+      { text: '开发指南', link: '/cn/contributing/development' },
+    ],
   },
+  { text: '致谢', link: '/cn/contributing/acknowledgments' },
 ]
 
 const twSidebar: DefaultTheme.SidebarItem[] = [

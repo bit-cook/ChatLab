@@ -21,7 +21,6 @@ const options = [
   { key: 'desktop', label: 'Desktop      (Electron)', command: 'pnpm run dev:desktop' },
   { key: 'web', label: 'Web          (CLI start + frontend)', command: 'pnpm run dev:web' },
   { key: 'server', label: 'Server Only  (API backend)', command: 'pnpm run dev:serve' },
-  { key: 'frontend', label: 'Frontend     (no backend)', command: 'pnpm run dev:app' },
   { key: 'docs', label: 'Docs         (VitePress)', command: 'pnpm run docs:dev' },
 ]
 

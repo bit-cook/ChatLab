@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.27.0 (2026-06-22)
+
+> Introduce vector index and evidence retrieval: locate and present chat evidence via semantic search, with a new index management UI.
+
+### ✨ Features
+
+- Add a semantic index management UI with conversation picker and i18n support
+- Add retrieve_chat_evidence tool: AI can retrieve time-anchored chat evidence via semantic search
+- Planner automatically routes evidence-type questions to the semantic retrieval tool
+- Evidence blocks support expand/collapse and click-through to the source message
+- Semantic retrieval supports time-range filtering
+- Redesign the semantic index model selection UI
+- AI process segments are now collapsible
+- Streamline evidence source rows and agent tool result display
+
+### 🐛 Bug Fixes
+
+- Fix multi-keyword message search
+- Fix UX regression in word cloud dictionary loading
+- Fix ranking label formatting and emoji cleanup
+- Add missing i18n text for the v8 database migration
+- [CLI] Fix missing session context forwarding and preprocessing in the tool adapter
+
 ## v0.26.3 (2026-06-15)
 
 > Improve analytics performance with on-disk caching and stale request cancellation for smoother session switching; fix several issues in word cloud, top-word stats, and the timeline panel.

@@ -802,7 +802,7 @@ onBeforeUnmount(() => {
 
       <aside
         v-if="showDetailPanel"
-        class="absolute inset-x-3 bottom-3 z-20 flex max-h-[70vh] flex-col overflow-hidden rounded-2xl border border-white/5 bg-white/10 shadow-2xl shadow-black/20 backdrop-blur-md dark:border-white/5 dark:bg-page-dark/10 md:inset-x-auto md:bottom-4 md:right-4 md:top-4 md:max-h-none md:w-[360px]"
+        class="dark absolute inset-x-3 bottom-3 z-20 flex max-h-[70vh] flex-col overflow-hidden rounded-2xl border border-white/5 bg-page-dark/10 text-white shadow-2xl shadow-black/20 backdrop-blur-md md:inset-x-auto md:bottom-4 md:right-4 md:top-4 md:max-h-none md:w-[360px]"
       >
         <UButton
           icon="i-lucide-x"

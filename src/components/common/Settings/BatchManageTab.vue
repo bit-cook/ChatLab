@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
+import { useVirtualizer } from '@tanstack/vue-virtual'
 import { useToast } from '@/composables/useToast'
 import { useSessionStore } from '@/stores/session'
 import type { AnalysisSession } from '@/types/base'
@@ -12,6 +13,7 @@ import 'dayjs/locale/zh-cn'
 
 dayjs.extend(relativeTime)
 const toast = useToast()
+const SESSION_ROW_HEIGHT = 48
 
 const { t, locale } = useI18n()
 const sessionStore = useSessionStore()
@@ -179,6 +181,24 @@ const sortedSessions = computed(() => {
 
   return items
 })
+
+const listScrollRef = ref<HTMLElement | null>(null)
+const sessionVirtualizer = useVirtualizer(
+  computed(() => ({
+    count: sortedSessions.value.length,
+    getScrollElement: () => listScrollRef.value,
+    estimateSize: () => SESSION_ROW_HEIGHT,
+    overscan: 10,
+    getItemKey: (index: number) => sortedSessions.value[index]?.id ?? index,
+  }))
+)
+const virtualSessionRows = computed(() =>
+  sessionVirtualizer.value.getVirtualItems().map((virtualItem) => ({
+    virtualItem,
+    session: sortedSessions.value[virtualItem.index]!,
+  }))
+)
+const virtualListHeight = computed(() => sessionVirtualizer.value.getTotalSize())
 
 // 选中的会话 ID 集合
 const selectedIds = ref<Set<string>>(new Set())
@@ -589,10 +609,13 @@ onMounted(() => {
       </div>
     </div>
 
-    <div v-else class="flex-1 overflow-y-auto rounded-lg border border-gray-200/50 dark:border-gray-700/50">
+    <div
+      v-else
+      class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200/50 dark:border-gray-700/50"
+    >
       <!-- 表头 -->
       <div
-        class="sticky top-0 z-1 flex items-center gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-500 dark:border-gray-700 dark:bg-page-dark/80 dark:text-gray-400"
+        class="flex shrink-0 items-center gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-500 dark:border-gray-700 dark:bg-page-dark/80 dark:text-gray-400"
       >
         <template v-for="column in headerColumns" :key="column.key">
           <div v-if="column.type === 'spacer'" :class="column.class" />
@@ -614,94 +637,102 @@ onMounted(() => {
       </div>
 
       <!-- 列表内容 -->
-      <div
-        v-for="(session, index) in sortedSessions"
-        :key="session.id"
-        class="flex cursor-pointer items-center gap-3 px-3 py-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
-        :class="[
-          isSelected(session.id) ? 'bg-pink-50 dark:bg-pink-900/20' : '',
-          index !== sortedSessions.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : '',
-        ]"
-        @mousedown="handleRowMouseDown"
-        @click="handleRowClick(index, session.id, $event)"
-      >
-        <!-- 复选框 -->
-        <div class="w-6">
-          <UCheckbox :model-value="isSelected(session.id)" @click.stop="handleRowClick(index, session.id, $event)" />
-        </div>
-
-        <!-- 头像 -->
-        <div class="w-8">
-          <LazyAvatar
-            :src="getSessionAvatar(session)"
-            :alt="session.name"
-            :text="getSessionAvatarText(session)"
-            :fallback-class="[
-              'flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-bold',
-              isPrivateChat(session) ? 'bg-pink-500 text-white' : 'bg-primary-500 text-white',
+      <div ref="listScrollRef" class="min-h-0 flex-1 overflow-y-auto">
+        <div class="relative" :style="{ height: `${virtualListHeight}px` }">
+          <div
+            v-for="{ virtualItem, session } in virtualSessionRows"
+            :key="String(virtualItem.key)"
+            class="absolute left-0 right-0 top-0 flex h-12 cursor-pointer items-center gap-3 px-3 py-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+            :class="[
+              isSelected(session.id) ? 'bg-pink-50 dark:bg-pink-900/20' : '',
+              virtualItem.index !== sortedSessions.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : '',
             ]"
-          />
-        </div>
-
-        <!-- 名称 -->
-        <div class="min-w-0 flex-1">
-          <div class="flex items-center gap-1.5">
-            <UIcon
-              :name="isPrivateChat(session) ? 'i-heroicons-user' : 'i-heroicons-user-group'"
-              class="h-3.5 w-3.5 shrink-0 text-gray-400"
-            />
-            <!-- 编辑模式 -->
-            <input
-              v-if="editingId === session.id"
-              v-model="editingName"
-              type="text"
-              class="w-full rounded border border-pink-300 bg-white px-2 py-0.5 text-sm font-medium text-gray-900 focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500 dark:border-pink-600 dark:bg-gray-800 dark:text-white"
-              autofocus
-              @blur="saveEdit"
-              @keydown.enter="saveEdit"
-              @keydown.escape="cancelEdit"
-              @click.stop
-            />
-            <!-- 显示模式 -->
-            <p
-              v-else
-              class="cursor-text truncate rounded px-1 text-sm font-medium text-gray-900 hover:bg-gray-200 dark:text-white dark:hover:bg-gray-700"
-              :title="t('tools.batchManage.clickToEdit')"
-              @click="startEdit(session, $event)"
-            >
-              {{ session.name }}
-            </p>
-          </div>
-        </div>
-
-        <!-- 平台 -->
-        <div class="w-20 text-center">
-          <span
-            class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
-            :class="getPlatformClass(session.platform)"
+            :style="{ transform: `translateY(${virtualItem.start}px)` }"
+            @mousedown="handleRowMouseDown"
+            @click="handleRowClick(virtualItem.index, session.id, $event)"
           >
-            {{ getPlatformLabel(session.platform) }}
-          </span>
-        </div>
+            <!-- 复选框 -->
+            <div class="w-6">
+              <UCheckbox
+                :model-value="isSelected(session.id)"
+                @click.stop="handleRowClick(virtualItem.index, session.id, $event)"
+              />
+            </div>
 
-        <!-- 消息数 -->
-        <div class="w-24 text-right text-sm text-gray-600 dark:text-gray-300">
-          {{ session.messageCount.toLocaleString() }}
-        </div>
+            <!-- 头像 -->
+            <div class="w-8">
+              <LazyAvatar
+                :src="getSessionAvatar(session)"
+                :alt="session.name"
+                :text="getSessionAvatarText(session)"
+                :fallback-class="[
+                  'flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-bold',
+                  isPrivateChat(session) ? 'bg-pink-500 text-white' : 'bg-primary-500 text-white',
+                ]"
+              />
+            </div>
 
-        <!-- AI 摘要数 -->
-        <div class="w-16 text-right text-sm text-gray-600 dark:text-gray-300">
-          {{ session.summaryCount || 0 }}
-        </div>
+            <!-- 名称 -->
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-1.5">
+                <UIcon
+                  :name="isPrivateChat(session) ? 'i-heroicons-user' : 'i-heroicons-user-group'"
+                  class="h-3.5 w-3.5 shrink-0 text-gray-400"
+                />
+                <!-- 编辑模式 -->
+                <input
+                  v-if="editingId === session.id"
+                  v-model="editingName"
+                  type="text"
+                  class="w-full rounded border border-pink-300 bg-white px-2 py-0.5 text-sm font-medium text-gray-900 focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500 dark:border-pink-600 dark:bg-gray-800 dark:text-white"
+                  autofocus
+                  @blur="saveEdit"
+                  @keydown.enter="saveEdit"
+                  @keydown.escape="cancelEdit"
+                  @click.stop
+                />
+                <!-- 显示模式 -->
+                <p
+                  v-else
+                  class="cursor-text truncate rounded px-1 text-sm font-medium text-gray-900 hover:bg-gray-200 dark:text-white dark:hover:bg-gray-700"
+                  :title="t('tools.batchManage.clickToEdit')"
+                  @click="startEdit(session, $event)"
+                >
+                  {{ session.name }}
+                </p>
+              </div>
+            </div>
 
-        <!-- AI 对话数 -->
-        <div class="w-16 text-right text-sm text-gray-600 dark:text-gray-300">
-          {{ session.aiConversationCount || 0 }}
-        </div>
+            <!-- 平台 -->
+            <div class="w-20 text-center">
+              <span
+                class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+                :class="getPlatformClass(session.platform)"
+              >
+                {{ getPlatformLabel(session.platform) }}
+              </span>
+            </div>
 
-        <!-- 导入时间 -->
-        <div class="w-28 text-right text-xs text-gray-500 dark:text-gray-400">
-          {{ formatTime(session.importedAt) }}
+            <!-- 消息数 -->
+            <div class="w-24 text-right text-sm text-gray-600 dark:text-gray-300">
+              {{ session.messageCount.toLocaleString() }}
+            </div>
+
+            <!-- AI 摘要数 -->
+            <div class="w-16 text-right text-sm text-gray-600 dark:text-gray-300">
+              {{ session.summaryCount || 0 }}
+            </div>
+
+            <!-- AI 对话数 -->
+            <div class="w-16 text-right text-sm text-gray-600 dark:text-gray-300">
+              {{ session.aiConversationCount || 0 }}
+            </div>
+
+            <!-- 导入时间 -->
+            <div class="w-28 text-right text-xs text-gray-500 dark:text-gray-400">
+              {{ formatTime(session.importedAt) }}
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.31.1 (2026-07-15)
+
+> Reorganize Home import options, add Agent/CLI import previews, and fix import consistency, message ordering, and sidebar layout.
+
+### ✨ Features
+
+- Reorganize Home into File, API, and CLI import options
+- Add official Chinese and English skills for importing and analyzing ChatLab data
+- Support idempotency keys for API imports, safely replaying duplicate requests and detecting conflicts
+
+### 🐛 Bug Fixes
+
+- Align validation, deduplication, member inference, and dry-run results for Push imports across runtimes
+- Keep backfilled chat history in chronological order using timestamps and message IDs
+- Fix QCE / QQ Chat Exporter private chats being detected as groups and creating a phantom “0” member
+
 ## v0.31.0 (2026-07-13)
 
 > Refresh the overall interface, add automatic incremental imports on Home, introduce personal insights, and improve identity management and import compatibility.

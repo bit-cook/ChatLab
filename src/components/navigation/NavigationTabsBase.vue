@@ -105,12 +105,12 @@ watch(
             'flex justify-between overflow-x-auto',
             bordered !== false ? 'border-b border-gray-200/50 dark:border-gray-800/50' : '',
             mode === 'section'
-              ? 'flex-col items-stretch gap-2 pl-7 pr-6 pt-3 xl:flex-row xl:items-center'
+              ? 'flex-wrap items-center gap-y-2 pl-7 pr-6 pt-3'
               : ['items-center', size === 'sm' ? 'px-3' : 'px-6'],
           ],
     ]"
   >
-    <div ref="containerRef" class="relative" :class="[isVertical ? 'flex flex-col gap-1' : 'flex gap-4 pb-1']">
+    <div ref="containerRef" class="relative" :class="[isVertical ? 'flex flex-col gap-1' : 'flex shrink-0 gap-4 pb-1']">
       <button
         v-for="tab in items"
         :key="tab.id"
@@ -136,7 +136,7 @@ watch(
     </div>
 
     <template v-if="!isVertical && $slots.right">
-      <div v-if="mode === 'section'" class="flex w-full min-w-0 items-center xl:w-auto xl:justify-end">
+      <div v-if="mode === 'section'" class="flex grow items-center justify-end">
         <slot name="right" />
       </div>
       <slot v-else name="right" />

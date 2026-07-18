@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.32.0 (2026-07-18)
+
+> Add a desktop app lock, make data migration safer, and fix large-file and multi-file imports.
+
+### ✨ Features
+
+- 【Desktop】Add an app lock with password protection, immediate locking, a startup unlock prompt, and automatic locking after inactivity
+
+### 🐛 Bug Fixes
+
+- Keep old data after migrating the data directory and prompt for manual cleanup, preventing source files from being deleted during migrations or retries
+- Process large ChatLab JSONL files in streaming batches to prevent import freezes and preserve member avatars in merged imports
+- Unify multi-file batch imports across Desktop and CLI Web with sequential progress, cancellation, and result summaries
+- 【Desktop】Add failed-attempt limits, cooldowns, and startup state protection to the app lock so refreshes or restarts cannot bypass it
+
 ## v0.31.3 (2026-07-17)
 
 > Add batch member deletion, refine the default assistant system prompt, reorganize rankings, and improve temporary directory cleanup.
